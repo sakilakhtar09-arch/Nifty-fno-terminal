@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NIFTY F&O Free Trading Terminal</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b0f14;color:#e8edf3;font-family:Inter,Arial,sans-serif}
+header{padding:14px 16px;border-bottom:1px solid #222a33;display:flex;justify-content:space-between;align-items:center;gap:12px;position:sticky;top:0;background:#0b0f14;z-index:5}
+h1{font-size:18px;margin:0}.sub{font-size:11px;color:#8c98a5;margin-top:3px}
+.controls{display:flex;gap:7px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid #222a33}
+button,select{background:#151c24;color:#e8edf3;border:1px solid #303a45;border-radius:7px;padding:8px 10px}
+button.active{border-color:#4c9ffe;background:#17283b}
+main{padding:10px;display:grid;grid-template-columns:1fr;gap:10px}.card{background:#10161d;border:1px solid #222a33;border-radius:9px;padding:10px}
+.card h2{font-size:13px;margin:0 0 9px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.metric{background:#151c24;padding:9px;border-radius:7px}.metric b{display:block;font-size:15px}.metric span{font-size:10px;color:#8c98a5}
+.grid{display:grid;grid-template-columns:1fr;gap:10px}.chart{height:620px}.tv{height:100%;min-height:360px}
+.note{font-size:11px;color:#8995a2;line-height:1.45}.green{color:#3ddc97}.red{color:#ff6b6b}
+@media(min-width:900px){main{grid-template-columns:1.4fr .8fr}.wide{grid-column:1/-1}.grid{grid-template-columns:1fr 1fr}.chart{height:680px}}
+</style>
+</head>
+<body>
+<header>
+<div><h1>🇮🇳 NIFTY F&O Free Trading Terminal</h1><div class="sub">Browser mode • No API key • TradingView market data/widgets</div></div>
+<div class="sub">Analysis only — not an execution terminal</div>
+</header>
+
+<div class="controls">
+<select id="symbol">
+<option>NSE:NIFTY</option><option>NSE:BANKNIFTY</option><option>NSE:RELIANCE</option>
+<option>NSE:HDFCBANK</option><option>NSE:ICICIBANK</option><option>NSE:SBIN</option>
+<option>NSE:INFY</option><option>NSE:TCS</option><option>NSE:HCLTECH</option>
+<option>NSE:SUNPHARMA</option><option>NSE:DIVISLAB</option><option>NSE:M&M</option>
+<option>NSE:TATAMOTORS</option><option>NSE:TATASTEEL</option><option>NSE:HINDALCO</option>
+<option>NSE:BHARTIARTL</option><option>NSE:LT</option><option>NSE:BAJFINANCE</option>
+</select>
+<button data-i="5" class="active">5m</button><button data-i="15">15m</button><button data-i="60">1H</button><button data-i="D">Daily</button>
+<button onclick="loadChart()">↻ Refresh chart</button>
+</div>
+
+<main>
+<section class="card wide">
+<h2>Market Overview</h2>
+<div class="metrics">
+<div class="metric"><span>NIFTY</span><b>Live chart</b></div>
+<div class="metric"><span>BANK NIFTY</span><b>Live chart</b></div>
+<div class="metric"><span>F&O universe</span><b>Sector view</b></div>
+<div class="metric"><span>Data</span><b class="green">Free</b></div>
+</div>
+</section>
+
+<section class="card chart">
+<h2 id="chartTitle">Selected chart</h2>
+<div id="chart" class="tv"></div>
+</section>
+
+<section class="card">
+<h2>Sector Strength / Market Heatmap</h2>
+<div id="heatmap" style="height:620px"></div>
+</section>
+
+<section class="card wide">
+<h2>F&O Stock Watchlist — Sector Wise</h2>
+<div class="grid">
+<div><b>Banking</b><p>HDFCBANK • ICICIBANK • SBIN • AXISBANK • KOTAKBANK • INDUSINDBK • BANKBARODA • PNB</p></div>
+<div><b>Financials</b><p>BAJFINANCE • BAJAJFINSV • SHRIRAMFIN • CHOLAFIN • PFC • RECLTD • HDFCLIFE • SBILIFE</p></div>
+<div><b>IT</b><p>TCS • INFY • HCLTECH • WIPRO • TECHM • LTIM • COFORGE • MPHASIS</p></div>
+<div><b>Energy</b><p>RELIANCE • ONGC • BPCL • IOC • GAIL • NTPC • POWERGRID • ADANIENT</p></div>
+<div><b>Pharma</b><p>SUNPHARMA • DRREDDY • CIPLA • DIVISLAB • APOLLOHOSP • LUPIN • AUROPHARMA</p></div>
+<div><b>Auto</b><p>MARUTI • M&M • TATAMOTORS • EICHERMOT • HEROMOTOCO • BAJAJ-AUTO • TVSMOTOR</p></div>
+<div><b>Metals</b><p>TATASTEEL • HINDALCO • JSWSTEEL • VEDL • JINDALSTEL • SAIL • NMDC</p></div>
+<div><b>Industrials</b><p>LT • SIEMENS • ABB • BEL • HAL • BHEL • CUMMINSIND • CGPOWER</p></div>
+</div>
+</section>
+
+<section class="card wide">
+<h2>Built-in analysis checklist</h2>
+<p class="note">Use the chart indicators to evaluate: EMA 8/20/50/200 alignment • VWAP • RSI • ADX • ATR • Bollinger Bands • volume • breakout/rejection • previous day high/low • CPR/pivots. For your preferred setup, look for 15m opening-range direction + 5m confirmation + VWAP + 20 EMA + volume + sector strength.</p>
+</section>
+</main>
+
+<script>
+let interval="5";
+function widget(symbol, interval){
+return `<div class="tradingview-widget-container" style="height:100%;width:100%">
+<div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+{"allow_symbol_change":true,"calendar":false,"details":true,"hide_side_toolbar":false,"hide_top_toolbar":false,"hide_legend":false,"hide_volume":false,"hotlist":false,"interval":"${interval}","locale":"en","save_image":false,"style":"1","symbol":"${symbol}","theme":"dark","timezone":"Asia/Kolkata","backgroundColor":"#10161d","gridColor":"#222a33","withdateranges":true,"studies":["EMA@tv-basicstudies","VWAP@tv-basicstudies","RSI@tv-basicstudies","ADX@tv-basicstudies","Volume@tv-basicstudies"],"support_host":"https://www.tradingview.com"}
+<\/script></div>`;
+}
+function loadChart(){
+let s=document.getElementById("symbol").value;
+document.getElementById("chartTitle").textContent=s+" • "+(interval==="60"?"1H":interval==="D"?"Daily":interval+"m");
+document.getElementById("chart").innerHTML=widget(s,interval);
+}
+document.querySelectorAll("button[data-i]").forEach(b=>b.onclick=()=>{document.querySelectorAll("button[data-i]").forEach(x=>x.classList.remove("active"));b.classList.add("active");interval=b.dataset.i;loadChart()});
+loadChart();
+
+document.getElementById("heatmap").innerHTML=`<div class="tradingview-widget-container" style="height:100%;width:100%">
+<div class="tradingview-widget-container__widget"></div>
+<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js" async>
+{"exchanges":["NSE"],"dataSource":"SENSEX","grouping":"sector","blockSize":"market_cap_basic","blockColor":"change","locale":"en","symbolUrl":"","colorTheme":"dark","hasTopBar":true,"isDataSetFlagEnabled":true,"isZoomEnabled":true,"width":"100%","height":"100%"}
+<\/script></div>`;
+</script>
+</body>
+</html>
