@@ -2,118 +2,184 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NIFTY F&O Free Trading Terminal</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NIFTY F&O Custom Terminal</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#0b0f14;color:#e8edf3;font-family:Arial,sans-serif}
-header{padding:14px 16px;border-bottom:1px solid #222a33;display:flex;justify-content:space-between;align-items:center;gap:12px;position:sticky;top:0;background:#0b0f14;z-index:5}
-h1{font-size:18px;margin:0}.sub{font-size:11px;color:#8c98a5;margin-top:3px}
-.controls{display:flex;gap:7px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid #222a33}
-button,select{background:#151c24;color:#e8edf3;border:1px solid #303a45;border-radius:7px;padding:8px 10px}
-button.active{border-color:#4c9ffe;background:#17283b}
-main{padding:10px;display:grid;grid-template-columns:1fr;gap:10px}.card{background:#10161d;border:1px solid #222a33;border-radius:9px;padding:10px}.card h2{font-size:13px;margin:0 0 9px}
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.metric{background:#151c24;padding:9px;border-radius:7px}.metric b{display:block;font-size:15px}.metric span{font-size:10px;color:#8c98a5}
-.grid{display:grid;grid-template-columns:1fr;gap:10px}.chart{height:620px}.widget{height:100%;width:100%}.note{font-size:11px;color:#8995a2;line-height:1.45}
-@media(min-width:900px){main{grid-template-columns:1.4fr .8fr}.wide{grid-column:1/-1}.grid{grid-template-columns:1fr 1fr}.chart{height:680px}}
+:root{--bg:#0b1016;--panel:#111821;--grid:#26313d;--txt:#d9e1ea;--muted:#8290a0;--up:#19c37d;--dn:#ff4d5d;--accent:#4da3ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:13px system-ui,Arial,sans-serif}
+header{padding:12px 14px;border-bottom:1px solid #1d2732;display:flex;justify-content:space-between;gap:10px;align-items:center}
+h1{font-size:16px;margin:0}.sub{font-size:11px;color:var(--muted);margin-top:3px}
+.controls{display:flex;gap:7px;flex-wrap:wrap;padding:10px;border-bottom:1px solid #1d2732}
+select,button{background:#151e28;color:var(--txt);border:1px solid #2a3745;border-radius:6px;padding:8px 10px}
+button.active{border-color:var(--accent);color:#fff}
+.grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:8px;padding:8px}
+.panel{background:var(--panel);border:1px solid #1d2732;border-radius:8px;overflow:hidden}
+.title{padding:9px 10px;font-weight:600;border-bottom:1px solid #1d2732}
+#chart{width:100%;height:520px;display:block}.stats{display:flex;gap:18px;padding:8px 10px;border-top:1px solid #1d2732;flex-wrap:wrap}
+.k{color:var(--muted)}.v{font-weight:600}.up{color:var(--up)}.dn{color:var(--dn)}
+#heat{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;padding:8px}
+.tile{padding:10px;border-radius:6px;min-height:58px}.tile b{display:block}.tile span{font-size:12px}
+.watch{padding:8px;display:grid;grid-template-columns:repeat(2,1fr);gap:5px}.row{background:#151e28;padding:9px;border-radius:5px;display:flex;justify-content:space-between}
+.scanner-controls{display:flex;gap:7px;align-items:center;flex-wrap:wrap;padding:8px}.scan-table-wrap{overflow:auto;padding:0 8px 8px}.scan{width:100%;border-collapse:collapse;min-width:760px;font-size:12px}.scan th,.scan td{padding:8px 6px;border-bottom:1px solid #26313d;text-align:left;white-space:nowrap}.scan th{color:#8290a0;position:sticky;top:0;background:#111821}.score{font-weight:700}.signal{font-weight:700}.buy{color:#19c37d}.sell{color:#ff4d5d}.neutral{color:#ffd166}
+.note{padding:9px;color:var(--muted);font-size:11px;border-top:1px solid #1d2732}
+@media(max-width:800px){.grid{grid-template-columns:1fr}#chart{height:440px}.watch{grid-template-columns:1fr 1fr}.scan-table-wrap{padding-bottom:12px}}
 </style>
 </head>
 <body>
-<header>
-<div><h1>🇮🇳 NIFTY F&O Free Trading Terminal</h1><div class="sub">Browser mode • No API key • TradingView widgets</div></div>
-<div class="sub">Analysis only — not an execution terminal</div>
-</header>
+<header><div><h1>🇮🇳 NIFTY F&O Custom Trading Terminal</h1><div class="sub">Own Canvas chart • no TradingView chart • no API key • free/delayed Yahoo Finance data</div></div><div id="status" class="sub">Ready</div></header>
 
 <div class="controls">
 <select id="symbol">
-<option value="NSE:NIFTY1!">NIFTY FUTURES</option><option value="NSE:BANKNIFTY1!">BANKNIFTY FUTURES</option>
-<option value="NSE:RELIANCE">RELIANCE</option><option value="NSE:HDFCBANK">HDFCBANK</option>
-<option value="NSE:ICICIBANK">ICICIBANK</option><option value="NSE:SBIN">SBIN</option>
-<option value="NSE:INFY">INFY</option><option value="NSE:TCS">TCS</option>
-<option value="NSE:HCLTECH">HCLTECH</option><option value="NSE:SUNPHARMA">SUNPHARMA</option>
-<option value="NSE:DIVISLAB">DIVISLAB</option><option value="NSE:M_M">M&M</option>
-<option value="NSE:TATAMOTORS">TATAMOTORS</option><option value="NSE:TATASTEEL">TATASTEEL</option>
-<option value="NSE:HINDALCO">HINDALCO</option><option value="NSE:BHARTIARTL">BHARTIARTL</option>
-<option value="NSE:LT">LT</option><option value="NSE:BAJFINANCE">BAJFINANCE</option>
+<option value="^NSEI">NIFTY 50</option><option value="^NSEBANK">BANK NIFTY</option>
+<option value="RELIANCE.NS">RELIANCE</option><option value="HDFCBANK.NS">HDFCBANK</option>
+<option value="ICICIBANK.NS">ICICIBANK</option><option value="SBIN.NS">SBIN</option>
+<option value="AXISBANK.NS">AXISBANK</option><option value="TCS.NS">TCS</option>
+<option value="INFY.NS">INFY</option><option value="LT.NS">LT</option>
+<option value="SUNPHARMA.NS">SUNPHARMA</option><option value="DIVISLAB.NS">DIVISLAB</option>
 </select>
-<button data-i="5" class="active">5m</button><button data-i="15">15m</button><button data-i="60">1H</button><button data-i="D">Daily</button>
-<button onclick="loadChart()">↻ Refresh chart</button>
+<button data-int="5m" class="active">5m</button><button data-int="15m">15m</button><button data-int="1h">1H</button><button data-int="1d">Daily</button>
+<button id="refresh">↻ Refresh</button>
+<label style="display:flex;align-items:center;gap:5px"><input id="ema8" type="checkbox" checked> EMA8</label>
+<label style="display:flex;align-items:center;gap:5px"><input id="ema20" type="checkbox" checked> EMA20</label>
+<label style="display:flex;align-items:center;gap:5px"><input id="ema50" type="checkbox"> EMA50</label>
+<label style="display:flex;align-items:center;gap:5px"><input id="vwap" type="checkbox" checked> VWAP</label>
 </div>
 
-<main>
-<section class="card wide"><h2>Market Overview</h2><div class="metrics">
-<div class="metric"><span>NIFTY</span><b>Live chart</b></div><div class="metric"><span>BANK NIFTY</span><b>Live chart</b></div>
-<div class="metric"><span>F&O universe</span><b>Sector view</b></div><div class="metric"><span>Data</span><b style="color:#3ddc97">Free</b></div>
+<div class="grid">
+<section class="panel"><div class="title" id="chartTitle">NIFTY 50 • 5m</div><canvas id="chart"></canvas><div class="stats">
+<div><span class="k">Close </span><span id="close" class="v">—</span></div>
+<div><span class="k">Change </span><span id="change" class="v">—</span></div>
+<div><span class="k">RSI14 </span><span id="rsi" class="v">—</span></div>
+<div><span class="k">ATR14 </span><span id="atr" class="v">—</span></div>
+<div><span class="k">Trend </span><span id="trend" class="v">—</span></div>
 </div></section>
 
-<section class="card chart"><h2 id="chartTitle">Selected chart</h2><div id="chart" class="widget"></div></section>
-<section class="card chart"><h2>Sector Strength / Market Heatmap</h2><div id="heatmap" class="widget"></div></section>
+<aside class="panel"><div class="title">Sector Strength</div><div id="heat">Loading…</div><div class="note">Sector score = average current % change of selected liquid F&O representatives. Data may be delayed and is not guaranteed real-time.</div></aside>
+</div>
 
-<section class="card wide"><h2>F&O Stock Watchlist — Sector Wise</h2><div class="grid">
-<div><b>Banking</b><p>HDFCBANK • ICICIBANK • SBIN • AXISBANK • KOTAKBANK • INDUSINDBK • BANKBARODA • PNB</p></div>
-<div><b>Financials</b><p>BAJFINANCE • BAJAJFINSV • SHRIRAMFIN • CHOLAFIN • PFC • RECLTD • HDFCLIFE • SBILIFE</p></div>
-<div><b>IT</b><p>TCS • INFY • HCLTECH • WIPRO • TECHM • LTIM • COFORGE • MPHASIS</p></div>
-<div><b>Energy</b><p>RELIANCE • ONGC • BPCL • IOC • GAIL • NTPC • POWERGRID • ADANIENT</p></div>
-<div><b>Pharma</b><p>SUNPHARMA • DRREDDY • CIPLA • DIVISLAB • APOLLOHOSP • LUPIN • AUROPHARMA</p></div>
-<div><b>Auto</b><p>MARUTI • M&M • TATAMOTORS • EICHERMOT • HEROMOTOCO • BAJAJ-AUTO • TVSMOTOR</p></div>
-<div><b>Metals</b><p>TATASTEEL • HINDALCO • JSWSTEEL • VEDL • JINDALSTEL • SAIL • NMDC</p></div>
-<div><b>Industrials</b><p>LT • SIEMENS • ABB • BEL • HAL • BHEL • CUMMINSIND • CGPOWER</p></div>
-</div></section>
-
-<section class="card wide"><h2>Built-in analysis checklist</h2>
-<p class="note">EMA 8/20/50/200 • VWAP • RSI • ADX • ATR • Bollinger Bands • volume • breakout/rejection • previous day high/low • CPR/pivots. Preferred setup: 15m opening-range direction + 5m confirmation + VWAP + 20 EMA + volume + sector strength.</p>
-</section>
-</main>
+<section class="panel" style="margin:0 8px 8px"><div class="title">F&O Scanner — Sector + Trend + Momentum</div>
+<div class="scanner-controls"><select id="scanSector"><option value="ALL">All sectors</option></select><select id="scanTf"><option value="1d">Daily trend</option><option value="1h">1H trend</option></select><button id="scanBtn">⚡ Scan F&O</button><span id="scanStatus" class="sub">Ready</span></div>
+<div class="scan-table-wrap"><table class="scan"><thead><tr><th>Rank</th><th>Stock</th><th>Sector</th><th>Score</th><th>Trend</th><th>RSI</th><th>ADX</th><th>Vol</th><th>Signal</th></tr></thead><tbody id="scanner"></tbody></table></div></section>
+<section class="panel" style="margin:0 8px 8px"><div class="title">F&O Watchlist — Sector Wise</div><div class="watch" id="watch"></div></section>
+<div class="note" style="margin:0 8px 10px">Important: this is an analysis terminal, not an order-execution terminal. Browser-only free market feeds can be delayed, rate-limited, or unavailable due to provider/CORS changes. The chart itself is drawn locally on HTML Canvas.</div>
 
 <script>
-let interval="5";
+const groups={
+Banking:["HDFCBANK.NS","ICICIBANK.NS","SBIN.NS","AXISBANK.NS","KOTAKBANK.NS","INDUSINDBK.NS"],
+IT:["TCS.NS","INFY.NS","HCLTECH.NS","WIPRO.NS","TECHM.NS","LTIM.NS"],
+Pharma:["SUNPHARMA.NS","DRREDDY.NS","CIPLA.NS","DIVISLAB.NS","LUPIN.NS","AUROPHARMA.NS"],
+Energy:["RELIANCE.NS","ONGC.NS","BPCL.NS","IOC.NS","GAIL.NS","NTPC.NS"],
+Auto:["MARUTI.NS","M&M.NS","TATAMOTORS.NS","EICHERMOT.NS","HEROMOTOCO.NS","BAJAJ-AUTO.NS"],
+Metals:["TATASTEEL.NS","HINDALCO.NS","JSWSTEEL.NS","VEDL.NS","JINDALSTEL.NS","SAIL.NS"],
+Financials:["BAJFINANCE.NS","BAJAJFINSV.NS","SHRIRAMFIN.NS","CHOLAFIN.NS","PFC.NS","RECLTD.NS"],
+Industrials:["LT.NS","SIEMENS.NS","ABB.NS","BEL.NS","HAL.NS","BHEL.NS"]
+};
+const names={}; Object.values(groups).flat().forEach(s=>names[s]=s.replace(".NS",""));
+let interval="5m", data=[];
+const $=id=>document.getElementById(id);
 
-function addTradingViewWidget(container, src, config){
-  container.innerHTML="";
-  const wrap=document.createElement("div");
-  wrap.className="tradingview-widget-container";
-  wrap.style.height="100%"; wrap.style.width="100%";
-  const inner=document.createElement("div");
-  inner.className="tradingview-widget-container__widget";
-  inner.style.height="100%"; inner.style.width="100%";
-  wrap.appendChild(inner);
-  const script=document.createElement("script");
-  script.type="text/javascript"; script.src=src; script.async=true;
-  script.text=JSON.stringify(config);
-  wrap.appendChild(script);
-  container.appendChild(wrap);
+async function yahoo(sym,int){
+  const range=int==="1d"?"6mo":int==="1h"?"60d":"7d";
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=${range}&interval=${int}&includePrePost=false`;
+  const r=await fetch(url); if(!r.ok) throw Error("data request failed");
+  const j=await r.json(), q=j.chart.result?.[0]; if(!q) throw Error("no data");
+  const c=q.indicators.quote[0], t=q.timestamp||[];
+  return t.map((x,i)=>({t:x,o:c.open[i],h:c.high[i],l:c.low[i],c:c.close[i],v:c.volume[i]||0})).filter(x=>[x.o,x.h,x.l,x.c].every(Number.isFinite));
+}
+function ema(a,n){let k=2/(n+1),e=a[0];return a.map((x,i)=>i?e=e+(x-e)*k:e)}
+function rsi(a,n=14){let g=0,l=0,out=Array(a.length).fill(null);for(let i=1;i<a.length;i++){let d=a[i]-a[i-1];g=(g*(n-1)+Math.max(d,0))/n;l=(l*(n-1)+Math.max(-d,0))/n;if(i>=n)out[i]=100-100/(1+g/(l||1e-9))}return out}
+function atr(d,n=14){let tr=d.map((x,i)=>i?Math.max(x.h-x.l,Math.abs(x.h-d[i-1].c),Math.abs(x.l-d[i-1].c)):x.h-x.l);return ema(tr,n)}
+function vwap(d){let pv=0,v=0;return d.map(x=>(pv+=(x.h+x.l+x.c)/3*x.v,v+=x.v,pv/(v||1)))}
+function fmt(x){return x==null?"—":x.toLocaleString("en-IN",{maximumFractionDigits:2})}
+
+function draw(){
+ const cv=$("chart"), r=cv.getBoundingClientRect(), dpr=devicePixelRatio||1; cv.width=r.width*dpr;cv.height=r.height*dpr;
+ const c=cv.getContext("2d");c.scale(dpr,dpr);let W=r.width,H=r.height;
+ c.fillStyle="#0b1016";c.fillRect(0,0,W,H);
+ if(!data.length){c.fillStyle="#8290a0";c.fillText("No data available",20,30);return}
+ const pad={l:48,r:55,t:20,b:55}, pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+ let lo=Math.min(...data.map(x=>x.l)),hi=Math.max(...data.map(x=>x.h)), extra=(hi-lo)*.06;lo-=extra;hi+=extra;
+ const X=i=>pad.l+i/(data.length-1)*pw,Y=p=>pad.t+(hi-p)/(hi-lo)*ph;
+ c.strokeStyle="#26313d";c.lineWidth=1;c.font="10px system-ui";c.fillStyle="#8290a0";
+ for(let j=0;j<=6;j++){let y=pad.t+j*ph/6,p=hi-j*(hi-lo)/6;c.beginPath();c.moveTo(pad.l,y);c.lineTo(W-pad.r,y);c.stroke();c.fillText(fmt(p),W-pad.r+5,y+3)}
+ const step=Math.max(1,Math.floor(data.length/7));
+ for(let i=0;i<data.length;i+=step){let x=X(i);c.beginPath();c.moveTo(x,pad.t);c.lineTo(x,H-pad.b);c.stroke();c.fillText(new Date(data[i].t*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}),x-20,H-30)}
+ let bw=Math.max(2,pw/data.length*.68);
+ data.forEach((x,i)=>{let xx=X(i),up=x.c>=x.o;c.strokeStyle=up?"#19c37d":"#ff4d5d";c.fillStyle=c.strokeStyle;c.beginPath();c.moveTo(xx,Y(x.h));c.lineTo(xx,Y(x.l));c.stroke();let y1=Y(x.o),y2=Y(x.c);c.fillRect(xx-bw/2,Math.min(y1,y2),bw,Math.max(1,Math.abs(y2-y1)))});
+ function line(vals,stroke){c.strokeStyle=stroke;c.lineWidth=1.5;c.beginPath();vals.forEach((v,i)=>{if(v==null)return;i?c.lineTo(X(i),Y(v)):c.moveTo(X(i),Y(v))});c.stroke();c.lineWidth=1}
+ if($("ema8").checked)line(ema(data.map(x=>x.c),8),"#ffd166");
+ if($("ema20").checked)line(ema(data.map(x=>x.c),20),"#4da3ff");
+ if($("ema50").checked)line(ema(data.map(x=>x.c),50),"#d98cff");
+ if($("vwap").checked)line(vwap(data),"#f2f2f2");
+ // volume
+ let vmax=Math.max(...data.map(x=>x.v)), vh=ph*.16;
+ data.forEach((x,i)=>{c.fillStyle=x.c>=x.o?"#19c37d66":"#ff4d5d66";let y=H-pad.b+(x.v/vmax)*vh;c.fillRect(X(i)-bw/2,y,bw,H-pad.b-y)});
+}
+async function load(){
+ $("status").textContent="Loading…";
+ try{
+  data=await yahoo($("symbol").value,interval); data=data.slice(-300);
+  const sym=$("symbol").selectedOptions[0].textContent, a=data.map(x=>x.c), rr=rsi(a), at=atr(data);
+  $("chartTitle").textContent=`${sym} • ${interval}`;$("close").textContent=fmt(a.at(-1));
+  const ch=a.at(-1)-a.at(-2), pct=ch/a.at(-2)*100;$("change").textContent=`${ch>=0?"+":""}${fmt(ch)} (${pct.toFixed(2)}%)`;$("change").className="v "+(ch>=0?"up":"dn");
+  $("rsi").textContent=fmt(rr.at(-1));$("atr").textContent=fmt(at.at(-1));$("trend").textContent=a.at(-1)>ema(a,20).at(-1)?"Bullish":"Bearish";$("trend").className="v "+(a.at(-1)>ema(a,20).at(-1)?"up":"dn");
+  draw();$("status").textContent="Updated "+new Date().toLocaleTimeString();
+ }catch(e){$("status").textContent="Data unavailable";$("chartTitle").textContent="Data provider unavailable";draw();console.warn(e)}
+}
+async function sectors(){
+ let box=$("heat"),vals=[];
+ for(const [g,arr] of Object.entries(groups)){let changes=[];for(const s of arr.slice(0,4)){try{let d=await yahoo(s,"1d");if(d.length>1)changes.push((d.at(-1).c/d.at(-2).c-1)*100)}catch{}}
+  let v=changes.length?changes.reduce((a,b)=>a+b,0)/changes.length:null;vals.push([g,v]);
+ }
+ box.innerHTML=vals.map(([g,v])=>`<div class="tile" style="background:${v==null?"#17202a":v>=0?`rgba(25,195,125,${Math.min(.8,.18+v/5)})`:`rgba(255,77,93,${Math.min(.8,.18-v/5)})`}"><b>${g}</b><span>${v==null?"—":(v>=0?"+":"")+v.toFixed(2)+"%"}</span></div>`).join("");
+}
+function watch(){
+ $("watch").innerHTML=Object.entries(groups).flatMap(([g,a])=>a.map(s=>`<div class="row"><span>${g} · ${names[s]}</span><span id="w-${CSS.escape(s)}">—</span></div>`)).join("");
 }
 
-function loadChart(){
-  const symbol=document.getElementById("symbol").value;
-  const label=interval==="60"?"1H":interval==="D"?"Daily":interval+"m";
-  document.getElementById("chartTitle").textContent=symbol+" • "+label;
-  addTradingViewWidget(document.getElementById("chart"),
-    "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js",
-    {
-      autosize:true,symbol:symbol,interval:interval,timezone:"Asia/Kolkata",
-      theme:"dark",style:"1",locale:"en",withdateranges:true,
-      hide_side_toolbar:false,allow_symbol_change:true,save_image:false,
-      details:true,calendar:false,
-      studies:["MASimple@tv-basicstudies","VWAP@tv-basicstudies","RSI@tv-basicstudies","ADX@tv-basicstudies","Volume@tv-basicstudies"],
-      support_host:"https://www.tradingview.com"
-    });
+function adx(d,n=14){
+ if(d.length<n*2)return null; let tr=[],pdm=[],mdm=[];
+ for(let i=1;i<d.length;i++){tr.push(Math.max(d[i].h-d[i].l,Math.abs(d[i].h-d[i-1].c),Math.abs(d[i].l-d[i-1].c)));let up=d[i].h-d[i-1].h,down=d[i-1].l-d[i].l;pdm.push(up>down&&up>0?up:0);mdm.push(down>up&&down>0?down:0)}
+ let atrs=ema(tr,n), ps=ema(pdm,n), ms=ema(mdm,n), dx=[]; for(let i=0;i<atrs.length;i++){let p=100*ps[i]/(atrs[i]||1e-9),m=100*ms[i]/(atrs[i]||1e-9);dx.push(100*Math.abs(p-m)/((p+m)||1e-9));} return ema(dx,n).at(-1);
 }
-
-document.querySelectorAll("button[data-i]").forEach(b=>b.onclick=()=>{
-  document.querySelectorAll("button[data-i]").forEach(x=>x.classList.remove("active"));
-  b.classList.add("active"); interval=b.dataset.i; loadChart();
-});
-
-function loadHeatmap(){
-  addTradingViewWidget(document.getElementById("heatmap"),
-    "https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js",
-    {
-      dataSource:"SENSEX",grouping:"sector",blockSize:"market_cap_basic",
-      blockColor:"change",locale:"en",colorTheme:"dark",hasTopBar:true,
-      isDataSetFlagEnabled:true,isZoomEnabled:true,width:"100%",height:"100%"
-    });
+function scannerMetrics(d){
+ if(d.length<60)return null; let c=d.map(x=>x.c), e8=ema(c,8).at(-1),e20=ema(c,20).at(-1),e50=ema(c,50).at(-1), vw=vwap(d).at(-1), r=rsi(c).at(-1), a=adx(d), avgVol=ema(d.map(x=>x.v),20).at(-1), vol=d.at(-1).v/(avgVol||1), hh=Math.max(...d.slice(-21,-1).map(x=>x.h)), ll=Math.min(...d.slice(-21,-1).map(x=>x.l)), last=c.at(-1);
+ let score=0; score += last>e8?10:-10; score += e8>e20?15:-15; score += e20>e50?15:-15; score += last>vw?10:-10; score += r>55&&r<75?15:r>=75?5:r>=45?0:-15; score += a>=25?(last>e20?15:-15):5; score += vol>=1.2?10:0; score += last>hh?15:last<ll?-15:0;
+ let signal=score>=55?'STRONG BUY':score>=25?'BUY':score<=-55?'STRONG SELL':score<=-25?'SELL':'WAIT';
+ return {score,trend:last>e20&&e8>e20?'Bullish':last<e20&&e8<e20?'Bearish':'Mixed',rsi:r,adx:a,vol,signal,breakout:last>hh?'UP':last<ll?'DOWN':'—'};
 }
-loadChart(); loadHeatmap();
+function initScanner(){let sel=$("scanSector");Object.keys(groups).forEach(g=>{let o=document.createElement('option');o.value=g;o.textContent=g;sel.appendChild(o)});}
+async function scanOne(s,g,tf){try{let d=await yahoo(s,tf);let m=scannerMetrics(d);if(!m)return null;return {...m,s,g}}catch{return null}}
+async function runScanner(){
+ const out=$("scanner"), status=$("scanStatus"), sec=$("scanSector").value, tf=$("scanTf").value; out.innerHTML='<tr><td colspan="9">Scanning… free data may take 20–60 seconds.</td></tr>';status.textContent='Scanning';
+ const jobs=[];for(const [g,arr] of Object.entries(groups))if(sec==='ALL'||sec===g)arr.forEach(s=>jobs.push(scanOne(s,g,tf)));
+ const res=[];for(let i=0;i<jobs.length;i+=4){let chunk=await Promise.all(jobs.slice(i,i+4));res.push(...chunk.filter(Boolean));status.textContent=`Scanned ${Math.min(i+4,jobs.length)}/${jobs.length}`;await new Promise(r=>setTimeout(r,250));}
+ res.sort((a,b)=>b.score-a.score);out.innerHTML=res.map((x,i)=>`<tr><td>${i+1}</td><td><b>${names[x.s]}</b></td><td>${x.g}</td><td class="score ${x.score>=0?'buy':'sell'}">${x.score}</td><td>${x.trend}</td><td>${x.rsi.toFixed(1)}</td><td>${x.adx.toFixed(1)}</td><td>${x.vol.toFixed(2)}x</td><td class="signal ${x.signal.includes('BUY')?'buy':x.signal.includes('SELL')?'sell':'neutral'}">${x.signal}</td></tr>`).join('')||'<tr><td colspan="9">No data returned. Try again later.</td></tr>';status.textContent=`Done • ${res.length} stocks`;
+}
+initScanner();$("scanBtn").onclick=runScanner;
+document.querySelectorAll("[data-int]").forEach(b=>b.onclick=()=>{
+function adx(d,n=14){
+ if(d.length<n*2)return null; let tr=[],pdm=[],mdm=[];
+ for(let i=1;i<d.length;i++){tr.push(Math.max(d[i].h-d[i].l,Math.abs(d[i].h-d[i-1].c),Math.abs(d[i].l-d[i-1].c)));let up=d[i].h-d[i-1].h,down=d[i-1].l-d[i].l;pdm.push(up>down&&up>0?up:0);mdm.push(down>up&&down>0?down:0)}
+ let atrs=ema(tr,n), ps=ema(pdm,n), ms=ema(mdm,n), dx=[]; for(let i=0;i<atrs.length;i++){let p=100*ps[i]/(atrs[i]||1e-9),m=100*ms[i]/(atrs[i]||1e-9);dx.push(100*Math.abs(p-m)/((p+m)||1e-9));} return ema(dx,n).at(-1);
+}
+function scannerMetrics(d){
+ if(d.length<60)return null; let c=d.map(x=>x.c), e8=ema(c,8).at(-1),e20=ema(c,20).at(-1),e50=ema(c,50).at(-1), vw=vwap(d).at(-1), r=rsi(c).at(-1), a=adx(d), avgVol=ema(d.map(x=>x.v),20).at(-1), vol=d.at(-1).v/(avgVol||1), hh=Math.max(...d.slice(-21,-1).map(x=>x.h)), ll=Math.min(...d.slice(-21,-1).map(x=>x.l)), last=c.at(-1);
+ let score=0; score += last>e8?10:-10; score += e8>e20?15:-15; score += e20>e50?15:-15; score += last>vw?10:-10; score += r>55&&r<75?15:r>=75?5:r>=45?0:-15; score += a>=25?(last>e20?15:-15):5; score += vol>=1.2?10:0; score += last>hh?15:last<ll?-15:0;
+ let signal=score>=55?'STRONG BUY':score>=25?'BUY':score<=-55?'STRONG SELL':score<=-25?'SELL':'WAIT';
+ return {score,trend:last>e20&&e8>e20?'Bullish':last<e20&&e8<e20?'Bearish':'Mixed',rsi:r,adx:a,vol,signal,breakout:last>hh?'UP':last<ll?'DOWN':'—'};
+}
+function initScanner(){let sel=$("scanSector");Object.keys(groups).forEach(g=>{let o=document.createElement('option');o.value=g;o.textContent=g;sel.appendChild(o)});}
+async function scanOne(s,g,tf){try{let d=await yahoo(s,tf);let m=scannerMetrics(d);if(!m)return null;return {...m,s,g}}catch{return null}}
+async function runScanner(){
+ const out=$("scanner"), status=$("scanStatus"), sec=$("scanSector").value, tf=$("scanTf").value; out.innerHTML='<tr><td colspan="9">Scanning… free data may take 20–60 seconds.</td></tr>';status.textContent='Scanning';
+ const jobs=[];for(const [g,arr] of Object.entries(groups))if(sec==='ALL'||sec===g)arr.forEach(s=>jobs.push(scanOne(s,g,tf)));
+ const res=[];for(let i=0;i<jobs.length;i+=4){let chunk=await Promise.all(jobs.slice(i,i+4));res.push(...chunk.filter(Boolean));status.textContent=`Scanned ${Math.min(i+4,jobs.length)}/${jobs.length}`;await new Promise(r=>setTimeout(r,250));}
+ res.sort((a,b)=>b.score-a.score);out.innerHTML=res.map((x,i)=>`<tr><td>${i+1}</td><td><b>${names[x.s]}</b></td><td>${x.g}</td><td class="score ${x.score>=0?'buy':'sell'}">${x.score}</td><td>${x.trend}</td><td>${x.rsi.toFixed(1)}</td><td>${x.adx.toFixed(1)}</td><td>${x.vol.toFixed(2)}x</td><td class="signal ${x.signal.includes('BUY')?'buy':x.signal.includes('SELL')?'sell':'neutral'}">${x.signal}</td></tr>`).join('')||'<tr><td colspan="9">No data returned. Try again later.</td></tr>';status.textContent=`Done • ${res.length} stocks`;
+}
+initScanner();$("scanBtn").onclick=runScanner;
+document.querySelectorAll("[data-int]").forEach(x=>x.classList.remove("active"));b.classList.add("active");interval=b.dataset.int;load()});
+$("symbol").onchange=load;$("refresh").onclick=()=>{load();sectors()};window.onresize=draw;
+watch();load();sectors();
 </script>
-</body>
-</html>
+</body></html>
