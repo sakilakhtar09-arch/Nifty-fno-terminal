@@ -1,0 +1,1055 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>NIFTY F&O Custom Terminal — Scanner</title>
+  <style>
+    :root {
+      --bg: #080d13;
+      --panel: #101720;
+      --panel2: #151f2a;
+      --grid: #26313d;
+      --txt: #e4ebf2;
+      --muted: #8290a0;
+      --up: #19c37d;
+      --dn: #ff4d5d;
+      --accent: #4da3ff;
+      --warn: #ffd166;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--txt);
+      font: 13px system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+    }
+
+    header {
+      padding: 12px 14px;
+      border-bottom: 1px solid #1d2732;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      background: #080d13;
+      z-index: 5;
+    }
+
+    h1 { font-size: 16px; margin: 0; }
+    .sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff6b6b;
+      animation: pulse 2s infinite;
+      margin-right: 6px;
+    }
+    .status-indicator.ok { background: #51cf66; animation: none; }
+    @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+    .controls {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      padding: 10px;
+      border-bottom: 1px solid #1d2732;
+      background: #0b1118;
+      position: sticky;
+      top: 58px;
+      z-index: 4;
+    }
+
+    select, button {
+      background: #151e28;
+      color: var(--txt);
+      border: 1px solid #2a3745;
+      border-radius: 6px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+
+    select:hover, button:hover { border-color: var(--accent); }
+    button.active { border-color: var(--accent); color: #fff; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+      gap: 8px;
+      padding: 8px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid #1d2732;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .title {
+      padding: 9px 10px;
+      font-weight: 650;
+      border-bottom: 1px solid #1d2732;
+    }
+
+    .section { margin: 0 8px 8px; }
+
+    .stats {
+      display: flex;
+      gap: 18px;
+      padding: 8px 10px;
+      border-top: 1px solid #1d2732;
+      flex-wrap: wrap;
+    }
+
+    .k { color: var(--muted); }
+    .v { font-weight: 650; }
+    .up { color: var(--up); }
+    .dn { color: var(--dn); }
+    .warn { color: var(--warn); }
+
+    #chart {
+      width: 100%;
+      height: 500px;
+      display: block;
+      cursor: crosshair;
+    }
+
+    #heat {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 5px;
+      padding: 8px;
+    }
+
+    .tile {
+      padding: 10px;
+      border-radius: 6px;
+      min-height: 58px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .tile:hover { transform: scale(1.02); }
+    .tile b { display: block; }
+    .tile span { font-size: 12px; }
+
+    .note {
+      padding: 9px;
+      color: var(--muted);
+      font-size: 11px;
+      border-top: 1px solid #1d2732;
+    }
+
+    .scanner-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 9px 10px;
+      border-bottom: 1px solid #1d2732;
+    }
+
+    .scanner-controls {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .scanner-controls select,
+    .scanner-controls button {
+      padding: 6px 8px;
+      font-size: 12px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 500px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+
+    th, td {
+      padding: 8px 7px;
+      border-bottom: 1px solid #1d2732;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 11px;
+      position: sticky;
+      top: 0;
+      background: #111821;
+    }
+
+    tbody tr:hover { background: #131d27; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 6px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .buy { background: #0d4b37; color: #7ef0bc; }
+    .sell { background: #5b1820; color: #ff9da8; }
+    .wait { background: #493d16; color: #ffe39a; }
+
+    .score { font-weight: 800; }
+    .mini { font-size: 11px; color: var(--muted); }
+
+    .top-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      padding: 8px;
+    }
+
+    .setup {
+      background: var(--panel2);
+      border: 1px solid #253342;
+      border-radius: 7px;
+      padding: 9px;
+    }
+
+    .setup .sym { font-weight: 750; font-size: 14px; }
+    .setup .sig { margin-top: 4px; }
+    .setup .line {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+    }
+    .setup .label { color: var(--muted); }
+
+    .empty {
+      padding: 20px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .foot {
+      padding: 10px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .error { color: #ff9da8; }
+
+    .progress {
+      height: 3px;
+      background: #1b2631;
+    }
+
+    .progress > div {
+      height: 100%;
+      background: var(--accent);
+      width: 0;
+      transition: width 0.2s;
+    }
+
+    .tooltip {
+      display: none;
+      position: absolute;
+      background: #1a2332;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 11px;
+      z-index: 10;
+      max-width: 200px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .tooltip.show { display: block; }
+
+    @media(max-width:900px) {
+      .grid { grid-template-columns: 1fr; }
+      .top-grid { grid-template-columns: repeat(2, 1fr); }
+      #chart { height: 430px; }
+      .controls { top: 58px; }
+    }
+
+    @media(max-width:520px) {
+      header { position: static; }
+      .controls { position: static; }
+      .top-grid { grid-template-columns: 1fr 1fr; }
+      .stats { gap: 10px; }
+      .setup { padding: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🇮🇳 NIFTY F&O Custom Trading Terminal</h1>
+      <div class="sub">Own Canvas chart • no TradingView • no API key • browser/free data mode</div>
+    </div>
+    <div id="status" class="sub">
+      <span class="status-indicator"></span>
+      <span id="statusText">Initializing</span>
+    </div>
+  </header>
+
+  <div class="controls">
+    <select id="symbol">
+      <option value="^NSEI">NIFTY 50</option>
+      <option value="^NSEBANK">BANK NIFTY</option>
+    </select>
+    <button data-int="5m" class="active">5m</button>
+    <button data-int="15m">15m</button>
+    <button data-int="1h">1H</button>
+    <button data-int="1d">Daily</button>
+    <button id="refresh">↻ Refresh chart</button>
+    <label style="display:flex;align-items:center;gap:5px">
+      <input id="ema8" type="checkbox" checked> EMA8
+    </label>
+    <label style="display:flex;align-items:center;gap:5px">
+      <input id="ema20" type="checkbox" checked> EMA20
+    </label>
+    <label style="display:flex;align-items:center;gap:5px">
+      <input id="ema50" type="checkbox"> EMA50
+    </label>
+    <label style="display:flex;align-items:center;gap:5px">
+      <input id="vwap" type="checkbox" checked> VWAP
+    </label>
+  </div>
+
+  <div class="note" style="margin:0 8px 8px;border:1px solid #1d2732;background:#101720;border-radius:8px">
+    💡 <b>Data mode:</b> Yahoo Finance + free CORS fallbacks. Chart is custom Canvas (no TradingView). If blocked, press <b>Refresh</b>. Local caching active for performance.
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="title" id="chartTitle">NIFTY 50 • 5m</div>
+      <canvas id="chart"></canvas>
+      <div class="stats">
+        <div><span class="k">Close</span> <span id="close" class="v">—</span></div>
+        <div><span class="k">Change</span> <span id="change" class="v">—</span></div>
+        <div><span class="k">RSI14</span> <span id="rsi" class="v">—</span></div>
+        <div><span class="k">ATR14</span> <span id="atr" class="v">—</span></div>
+        <div><span class="k">ADX14</span> <span id="adx" class="v">—</span></div>
+        <div><span class="k">Trend</span> <span id="trend" class="v">—</span></div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="title">Sector Strength / Heatmap</div>
+      <div id="heat">Loading…</div>
+      <div class="note">Sector score = avg daily % change of top 5 F&O names. Colors = relative momentum.</div>
+    </aside>
+  </div>
+
+  <section class="panel section">
+    <div class="scanner-head">
+      <div>
+        <b>⚡ Top 5 F&O Setups</b>
+        <div class="mini">Heuristic ranking: trend + VWAP + RSI + ADX + rel.vol + breakout + sector.</div>
+      </div>
+      <div class="scanner-controls">
+        <select id="scanInt">
+          <option value="1h">1H scan</option>
+          <option value="15m">15m scan</option>
+          <option value="1d">Daily scan</option>
+        </select>
+        <select id="scanSector">
+          <option value="ALL">All sectors</option>
+        </select>
+        <button id="scan">▶ Scan F&O</button>
+      </div>
+    </div>
+    <div class="progress"><div id="progressBar"></div></div>
+    <div id="top5" class="top-grid">
+      <div class="empty">Tap "Scan F&O" to rank the watchlist.</div>
+    </div>
+  </section>
+
+  <section class="panel section">
+    <div class="scanner-head">
+      <div>
+        <b>F&O Scanner — Full Ranking</b>
+        <div class="mini">Entry/SL/targets are mechanical estimates; not execution signals.</div>
+      </div>
+      <div class="mini" id="scanStatus">Not scanned</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Symbol</th>
+            <th>Sector</th>
+            <th>Signal</th>
+            <th>Score</th>
+            <th>Price</th>
+            <th>RSI</th>
+            <th>ADX</th>
+            <th>VWAP</th>
+            <th>Rel Vol</th>
+            <th>Entry Zone</th>
+            <th>SL</th>
+            <th>T1</th>
+            <th>T2</th>
+          </tr>
+        </thead>
+        <tbody id="scannerBody">
+          <tr><td colspan="14" class="empty">No scan yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel section">
+    <div class="title">F&O Watchlist — Sector Wise</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Sector</th>
+            <th>Symbols</th>
+          </tr>
+        </thead>
+        <tbody id="watch"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="foot section">
+    <b>⚠️ Disclaimer:</b> Analysis only — not an order-execution terminal. Free data feeds can be delayed, rate-limited, or temporarily blocked by CORS. NSE official contract lists are the source of truth for the live F&O universe. Always verify with your broker before trading.
+  </div>
+
+  <script>
+    // ============ CONFIG & DATA STRUCTURES ============
+    const CACHE_VERSION = 1;
+    const CACHE_TTL = 60000; // 60 seconds
+    const API_RETRY_DELAY = 200;
+    const MAX_RETRY_ATTEMPTS = 3;
+
+    const groups = {
+      Banking: ["HDFCBANK.NS", "ICICIBANK.NS", "SBIN.NS", "AXISBANK.NS", "KOTAKBANK.NS", "INDUSINDBK.NS", "BANKBARODA.NS", "PNB.NS", "CANBK.NS"],
+      Financials: ["BAJFINANCE.NS", "BAJAJFINSV.NS", "SHRIRAMFIN.NS", "CHOLAFIN.NS", "PFC.NS", "RECLTD.NS", "HDFCLIFE.NS", "SBILIFE.NS", "JIOFIN.NS", "LICI.NS"],
+      IT: ["TCS.NS", "INFY.NS", "HCLTECH.NS", "WIPRO.NS", "TECHM.NS", "LTIM.NS", "COFORGE.NS", "MPHASIS.NS", "PERSISTENT.NS", "OFSS.NS"],
+      Pharma: ["SUNPHARMA.NS", "DRREDDY.NS", "CIPLA.NS", "DIVISLAB.NS", "LUPIN.NS", "AUROPHARMA.NS", "APOLLOHOSP.NS", "ALKEM.NS", "BIOCON.NS", "ZYDUSLIFE.NS"],
+      Energy: ["RELIANCE.NS", "ONGC.NS", "BPCL.NS", "IOC.NS", "GAIL.NS", "NTPC.NS", "POWERGRID.NS", "ADANIENSOL.NS", "ADANIGREEN.NS", "COALINDIA.NS"],
+      Auto: ["MARUTI.NS", "M&M.NS", "TATAMOTORS.NS", "EICHERMOT.NS", "HEROMOTOCO.NS", "BAJAJ-AUTO.NS", "TVSMOTOR.NS", "ASHOKLEY.NS", "BHARATFORG.NS", "MOTHERSON.NS"],
+      Metals: ["TATASTEEL.NS", "HINDALCO.NS", "JSWSTEEL.NS", "VEDL.NS", "JINDALSTEL.NS", "SAIL.NS", "NMDC.NS", "HINDZINC.NS", "NATIONALUM.NS", "APLAPOLLO.NS"],
+      Industrials: ["LT.NS", "SIEMENS.NS", "ABB.NS", "BEL.NS", "HAL.NS", "BHEL.NS", "CUMMINSIND.NS", "CGPOWER.NS", "BOSCHLTD.NS", "VOLTAS.NS"],
+      Consumer: ["HINDUNILVR.NS", "ITC.NS", "NESTLEIND.NS", "BRITANNIA.NS", "TITAN.NS", "ASIANPAINT.NS", "ULTRACEMCO.NS", "GRASIM.NS", "TRENT.NS", "DMART.NS"],
+      Telecom: ["BHARTIARTL.NS", "INDUSTOWER.NS"],
+      Chemicals: ["PIDILITIND.NS", "SRF.NS", "UPL.NS", "DEEPAKNTR.NS", "PIIND.NS", "ATUL.NS"],
+      Cement: ["ULTRACEMCO.NS", "SHREECEM.NS", "AMBUJACEM.NS", "ACC.NS"]
+    };
+
+    const names = {};
+    Object.values(groups).flat().forEach(s => names[s] = s.replace(".NS", ""));
+
+    // ============ STATE ============
+    let interval = "5m";
+    let data = [];
+    let sectorCache = {};
+    let dataCache = new Map();
+
+    // ============ UTILITIES ============
+    const $ = (id) => document.getElementById(id);
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    function setStatus(text, ok = false) {
+      $("statusText").textContent = text;
+      const indicator = document.querySelector(".status-indicator");
+      if (ok) {
+        indicator.classList.add("ok");
+      } else {
+        indicator.classList.remove("ok");
+      }
+    }
+
+    function getCacheKey(sym, int) {
+      return `${sym}_${int}`;
+    }
+
+    function getCachedData(sym, int) {
+      const key = getCacheKey(sym, int);
+      if (dataCache.has(key)) {
+        const { data: cachedData, time } = dataCache.get(key);
+        if (Date.now() - time < CACHE_TTL) {
+          return cachedData;
+        }
+      }
+      return null;
+    }
+
+    function setCachedData(sym, int, data) {
+      const key = getCacheKey(sym, int);
+      dataCache.set(key, { data, time: Date.now() });
+    }
+
+    // ============ DATA FETCHING ============
+    async function yahoo(sym, int) {
+      // Check cache first
+      const cached = getCachedData(sym, int);
+      if (cached) return cached;
+
+      const range = int === "1d" ? "1y" : int === "1h" ? "90d" : "10d";
+      const base = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=${range}&interval=${int}&includePrePost=false`;
+
+      const urls = [
+        base,
+        `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=${range}&interval=${int}&includePrePost=false`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(base)}`,
+      ];
+
+      let lastErr;
+
+      for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+        for (const u of urls) {
+          try {
+            const r = await fetch(u, { cache: "no-store" });
+            if (!r.ok) throw Error(`HTTP ${r.status}`);
+            const text = await r.text();
+            const j = JSON.parse(text);
+            const q = j.chart?.result?.[0];
+            if (!q) throw Error("no chart result");
+            const c = q.indicators?.quote?.[0] || {};
+            const t = q.timestamp || [];
+            const out = t
+              .map((x, i) => ({
+                t: x,
+                o: c.open?.[i],
+                h: c.high?.[i],
+                l: c.low?.[i],
+                c: c.close?.[i],
+                v: c.volume?.[i] || 0,
+              }))
+              .filter((x) => [x.o, x.h, x.l, x.c].every(Number.isFinite));
+            if (out.length > 5) {
+              setCachedData(sym, int, out);
+              return out;
+            }
+            throw Error("insufficient candles");
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+        if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+          await sleep(API_RETRY_DELAY * Math.pow(2, attempt));
+        }
+      }
+      throw lastErr || Error("all data providers failed");
+    }
+
+    // ============ INDICATORS ============
+    function ema(a, n) {
+      if (!a.length) return [];
+      let k = 2 / (n + 1);
+      let e = a[0];
+      return a.map((x, i) => (i ? (e = e + (x - e) * k) : e));
+    }
+
+    function rsi(a, n = 14) {
+      let g = 0, l = 0, out = Array(a.length).fill(null);
+      for (let i = 1; i < a.length; i++) {
+        let d = a[i] - a[i - 1];
+        g = (g * (n - 1) + Math.max(d, 0)) / n;
+        l = (l * (n - 1) + Math.max(-d, 0)) / n;
+        if (i >= n) out[i] = 100 - 100 / (1 + g / (l || 1e-9));
+      }
+      return out;
+    }
+
+    function atr(d, n = 14) {
+      let tr = d.map(
+        (x, i) =>
+          i
+            ? Math.max(
+                x.h - x.l,
+                Math.abs(x.h - d[i - 1].c),
+                Math.abs(x.l - d[i - 1].c)
+              )
+            : x.h - x.l
+      );
+      return ema(tr, n);
+    }
+
+    function vwap(d) {
+      let pv = 0, v = 0;
+      return d.map((x) => (
+        (pv += ((x.h + x.l + x.c) / 3) * x.v),
+        (v += x.v),
+        pv / (v || 1)
+      ));
+    }
+
+    function adx(d, n = 14) {
+      let tr = [], pdm = [], mdm = [];
+      for (let i = 0; i < d.length; i++) {
+        if (i === 0) {
+          tr.push(d[i].h - d[i].l);
+          pdm.push(0);
+          mdm.push(0);
+          continue;
+        }
+        let up = d[i].h - d[i - 1].h, down = d[i - 1].l - d[i].l;
+        tr.push(
+          Math.max(
+            d[i].h - d[i].l,
+            Math.abs(d[i].h - d[i - 1].c),
+            Math.abs(d[i].l - d[i - 1].c)
+          )
+        );
+        pdm.push(up > down && up > 0 ? up : 0);
+        mdm.push(down > up && down > 0 ? down : 0);
+      }
+      let atrs = ema(tr, n), p = ema(pdm, n), m = ema(mdm, n);
+      let dx = d.map((_, i) => {
+        let pi = 100 * (p[i] / (atrs[i] || 1e-9)), mi = 100 * (m[i] / (atrs[i] || 1e-9));
+        return 100 * Math.abs(pi - mi) / ((pi + mi) || 1);
+      });
+      return ema(dx, n);
+    }
+
+    function relVol(d, n = 20) {
+      if (d.length < n + 1) return null;
+      let avg = d.slice(-n - 1, -1).reduce((s, x) => s + x.v, 0) / n;
+      return d.at(-1).v / (avg || 1);
+    }
+
+    // ============ FORMATTING ============
+    function fmt(x) {
+      return x == null || !Number.isFinite(x)
+        ? "—"
+        : x.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+    }
+
+    function pct(x) {
+      return x == null || !Number.isFinite(x)
+        ? "—"
+        : `${x >= 0 ? "+" : ""}${x.toFixed(2)}%`;
+    }
+
+    // ============ CHART RENDERING ============
+    function draw() {
+      const cv = $("chart");
+      const r = cv.getBoundingClientRect();
+      const dpr = devicePixelRatio || 1;
+      cv.width = r.width * dpr;
+      cv.height = r.height * dpr;
+      const c = cv.getContext("2d");
+      c.scale(dpr, dpr);
+
+      let W = r.width, H = r.height;
+      c.fillStyle = "#080d13";
+      c.fillRect(0, 0, W, H);
+
+      if (!data.length) {
+        c.fillStyle = "#8290a0";
+        c.font = "13px system-ui";
+        c.fillText("No data available", 20, 30);
+        return;
+      }
+
+      const pad = { l: 48, r: 58, t: 20, b: 55 };
+      const pw = W - pad.l - pad.r;
+      const ph = H - pad.t - pad.b;
+
+      let lo = Math.min(...data.map((x) => x.l));
+      let hi = Math.max(...data.map((x) => x.h));
+      const extra = (hi - lo) * 0.06;
+      lo -= extra;
+      hi += extra;
+
+      const X = (i) => pad.l + (i / (data.length - 1)) * pw;
+      const Y = (p) => pad.t + ((hi - p) / (hi - lo)) * ph;
+
+      // Grid lines & labels
+      c.strokeStyle = "#26313d";
+      c.lineWidth = 1;
+      c.font = "10px system-ui";
+      c.fillStyle = "#8290a0";
+
+      for (let j = 0; j <= 6; j++) {
+        let y = pad.t + (j * ph) / 6;
+        let p = hi - (j * (hi - lo)) / 6;
+        c.beginPath();
+        c.moveTo(pad.l, y);
+        c.lineTo(W - pad.r, y);
+        c.stroke();
+        c.fillText(fmt(p), W - pad.r + 5, y + 3);
+      }
+
+      let step = Math.max(1, Math.floor(data.length / 7));
+      for (let i = 0; i < data.length; i += step) {
+        let x = X(i);
+        c.beginPath();
+        c.moveTo(x, pad.t);
+        c.lineTo(x, H - pad.b);
+        c.stroke();
+        let dt = new Date(data[i].t * 1000);
+        let timeStr =
+          interval === "1d"
+            ? dt.toLocaleDateString([], { day: "2-digit", month: "short" })
+            : dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        c.fillText(timeStr, x - 20, H - 30);
+      }
+
+      // Candlesticks & volume
+      let bw = Math.max(2, (pw / data.length) * 0.68);
+      data.forEach((x, i) => {
+        let xx = X(i);
+        let up = x.c >= x.o;
+        c.strokeStyle = up ? "#19c37d" : "#ff4d5d";
+        c.fillStyle = c.strokeStyle;
+
+        // Wick
+        c.beginPath();
+        c.moveTo(xx, Y(x.h));
+        c.lineTo(xx, Y(x.l));
+        c.stroke();
+
+        // Body
+        let y1 = Y(x.o), y2 = Y(x.c);
+        c.fillRect(xx - bw / 2, Math.min(y1, y2), bw, Math.max(1, Math.abs(y2 - y1)));
+      });
+
+      // Indicators
+      function line(vals, stroke) {
+        c.strokeStyle = stroke;
+        c.lineWidth = 1.5;
+        c.beginPath();
+        vals.forEach((v, i) => {
+          if (v == null) return;
+          i ? c.lineTo(X(i), Y(v)) : c.moveTo(X(i), Y(v));
+        });
+        c.stroke();
+        c.lineWidth = 1;
+      }
+
+      if ($("ema8").checked) line(ema(data.map((x) => x.c), 8), "#ffd166");
+      if ($("ema20").checked) line(ema(data.map((x) => x.c), 20), "#4da3ff");
+      if ($("ema50").checked) line(ema(data.map((x) => x.c), 50), "#d98cff");
+      if ($("vwap").checked) line(vwap(data), "#f2f2f2");
+
+      // Volume bars
+      let vmax = Math.max(...data.map((x) => x.v), 1);
+      let vh = ph * 0.16;
+      data.forEach((x, i) => {
+        c.fillStyle = x.c >= x.o ? "#19c37d66" : "#ff4d5d66";
+        let y = H - pad.b + (x.v / vmax) * vh;
+        c.fillRect(X(i) - bw / 2, y, bw, H - pad.b - y);
+      });
+    }
+
+    // ============ DATA LOADING & STATS ============
+    async function load() {
+      setStatus("Loading…", false);
+      try {
+        data = await yahoo($("symbol").value, interval);
+        data = data.slice(-350);
+
+        const sym = $("symbol").selectedOptions[0].textContent;
+        const a = data.map((x) => x.c);
+        const rr = rsi(a);
+        const at = atr(data);
+        const ax = adx(data);
+        const vw = vwap(data);
+
+        $("chartTitle").textContent = `${sym} • ${interval}`;
+        $("close").textContent = fmt(a.at(-1));
+
+        const ch = a.at(-1) - a.at(-2);
+        const p = (ch / a.at(-2)) * 100;
+        $("change").textContent = `${ch >= 0 ? "+" : ""}${fmt(ch)} (${p.toFixed(2)}%)`;
+        $("change").className = "v " + (ch >= 0 ? "up" : "dn");
+
+        $("rsi").textContent = fmt(rr.at(-1));
+        $("atr").textContent = fmt(at.at(-1));
+        $("adx").textContent = fmt(ax.at(-1));
+
+        let bull = a.at(-1) > ema(a, 20).at(-1) && a.at(-1) > vw.at(-1);
+        $("trend").textContent = bull ? "Bullish" : "Bearish";
+        $("trend").className = "v " + (bull ? "up" : "dn");
+
+        draw();
+        setStatus(
+          "Updated " + new Date().toLocaleTimeString(),
+          true
+        );
+      } catch (e) {
+        setStatus("Data unavailable — tap Refresh", false);
+        console.warn("Market data error:", e);
+        data = [];
+        draw();
+        $("close").textContent = "—";
+        $("change").textContent = "—";
+        $("rsi").textContent = "—";
+        $("atr").textContent = "—";
+        $("adx").textContent = "—";
+        $("trend").textContent = "—";
+      }
+    }
+
+    // ============ SECTOR STRENGTH ============
+    async function sectorStrength() {
+      let box = $("heat");
+      let vals = [];
+
+      for (const [g, arr] of Object.entries(groups)) {
+        let changes = [];
+        for (const s of arr.slice(0, 5)) {
+          try {
+            let d = await yahoo(s, "1d");
+            if (d.length > 1) {
+              changes.push(((d.at(-1).c / d.at(-2).c) - 1) * 100);
+            }
+          } catch {
+            // Silently skip failed requests
+          }
+        }
+        let v = changes.length
+          ? changes.reduce((a, b) => a + b, 0) / changes.length
+          : null;
+        sectorCache[g] = v;
+        vals.push([g, v]);
+      }
+
+      box.innerHTML = vals
+        .map(([g, v]) => {
+          let alpha =
+            v == null ? 0.15 : Math.min(0.8, 0.18 + Math.abs(v) / 3);
+          return `<div class="tile" style="background:${
+            v == null
+              ? "#17202a"
+              : v >= 0
+                ? `rgba(25,195,125,${alpha})`
+                : `rgba(255,77,93,${alpha})`
+          }"><b>${g}</b><span>${v == null ? "—" : pct(v)}</span></div>`;
+        })
+        .join("");
+    }
+
+    // ============ WATCHLIST ============
+    function watch() {
+      $("watch").innerHTML = Object.entries(groups)
+        .map(
+          ([g, a]) =>
+            `<tr><td><b>${g}</b></td><td>${a
+              .map((s) => names[s])
+              .join(" · ")}</td></tr>`
+        )
+        .join("");
+      $("scanSector").innerHTML =
+        '<option value="ALL">All sectors</option>' +
+        Object.keys(groups)
+          .map((g) => `<option>${g}</option>`)
+          .join("");
+    }
+
+    // ============ SETUP SCORING ============
+    function scoreSetup(d, sector) {
+      if (d.length < 55) return null;
+
+      const close = d.at(-1).c;
+      const closes = d.map((x) => x.c);
+      const e8 = ema(closes, 8).at(-1);
+      const e20 = ema(closes, 20).at(-1);
+      const e50 = ema(closes, 50).at(-1);
+      const vw = vwap(d).at(-1);
+      const rs = rsi(closes).at(-1);
+      const ax = adx(d).at(-1);
+      const av = atr(d).at(-1);
+      const rv = relVol(d);
+      const hi20 = Math.max(...d.slice(-21, -1).map((x) => x.h));
+      const lo20 = Math.min(...d.slice(-21, -1).map((x) => x.l));
+
+      let long = 0, short = 0;
+
+      const add = (cond, pts) => {
+        if (cond) long += pts;
+      };
+      const sub = (cond, pts) => {
+        if (cond) short += pts;
+      };
+
+      // Long signals
+      add(close > e8, 8);
+      add(e8 > e20, 10);
+      add(e20 > e50, 10);
+      add(close > vw, 10);
+      add(rs >= 55 && rs <= 72, 8);
+      add(ax >= 20, 8);
+      add(rv != null && rv >= 1.2, 8);
+      add(close > hi20, 10);
+      add((sectorCache[sector] || 0) > 0, 5);
+
+      // Short signals
+      sub(close < e8, 8);
+      sub(e8 < e20, 10);
+      sub(e20 < e50, 10);
+      sub(close < vw, 10);
+      sub(rs <= 45 && rs >= 28, 8);
+      sub(ax >= 20, 8);
+      sub(rv != null && rv >= 1.2, 8);
+      sub(close < lo20, 10);
+      sub((sectorCache[sector] || 0) < 0, 5);
+
+      let direction = long >= short ? "BUY" : "SELL";
+      let raw = Math.max(long, short);
+      let confidence = Math.min(99, Math.round(55 + raw * 0.42));
+
+      if (Math.abs(long - short) < 10) direction = "WAIT";
+      if (direction === "WAIT")
+        confidence = Math.min(65, Math.round(50 + Math.max(long, short) * 0.2));
+
+      let zone = av * 0.18;
+      let entryLo = direction === "SELL" ? close - zone : close - zone;
+      let entryHi = close + zone;
+
+      let sl = direction === "BUY" ? close - av * 1.0 : close + av * 1.0;
+      let t1 = direction === "BUY" ? close + av * 1.5 : close - av * 1.5;
+      let t2 = direction === "BUY" ? close + av * 2.4 : close - av * 2.4;
+
+      return {
+        symbol: d.symbol,
+        sector,
+        direction,
+        score: raw,
+        confidence,
+        price: close,
+        rsi: rs,
+        adx: ax,
+        vwap: close - vw,
+        relVol: rv,
+        entryLo,
+        entryHi,
+        sl,
+        t1,
+        t2,
+        atr: av,
+        long,
+        short,
+        breakout: close > hi20 || close < lo20,
+      };
+    }
+
+    // ============ SCANNER ============
+    async function scanAll() {
+      const int = $("scanInt").value;
+      const sectorFilter = $("scanSector").value;
+      $("scanStatus").textContent = "Scanning…";
+      $("progressBar").style.width = "0%";
+      $("top5").innerHTML = '<div class="empty">Fetching data…</div>';
+      $("scannerBody").innerHTML =
+        '<tr><td colspan="14" class="empty">Scanning…</td></tr>';
+
+      let list = Object.entries(groups)
+        .flatMap(([g, a]) =>
+          a
+            .filter((s) => sectorFilter === "ALL" || g === sectorFilter)
+            .map((s) => ({ s, g }))
+        );
+
+      let results = [], done = 0;
+      const total = list.length;
+      const concurrency = 4;
+
+      async function worker() {
+        while (true) {
+          const item = list.shift();
+          if (!item) return;
+          try {
+            let d = await yahoo(item.s, int);
+            d = d.slice(-260);
+            d.symbol = item.s;
+            let r = scoreSetup(d, item.g);
+            if (r) results.push(r);
+          } catch {
+            // Silently skip failed requests
+          }
+          done++;
+          $("progressBar").style.width = `${total ? (done / total) * 100 : 100}%`;
+          await sleep(80);
+        }
+      }
+
+      await Promise.all(Array.from({ length: concurrency }, worker));
+
+      results.sort(
+        (a, b) => b.confidence - a.confidence || b.score - a.score
+      );
+
+      renderResults(results);
+      $("scanStatus").textContent = `${results.length} stocks ranked • ${new Date().toLocaleTimeString()}`;
+    }
+
+    function signalClass(s) {
+      return s === "BUY" ? "buy" : s === "SELL" ? "sell" : "wait";
+    }
+
+    function renderResults(results) {
+      const top = results.filter((x) => x.direction !== "WAIT").slice(0, 5);
+      $("top5").innerHTML = top.length
+        ? top
+            .map(
+              (r) =>
+                `<div class="setup"><div class="sym">${names[r.symbol]} <span class="mini">${r.sector}</span></div><div class="sig"><span class="badge ${signalClass(r.direction)}">${r.direction}</span> <span class="score">${r.confidence}%</span></div><div class="line"><span class="label">Price</span><b>${fmt(r.price)}</b></div><div class="line"><span class="label">Entry</span><b>${fmt(r.entryLo)}–${fmt(r.entryHi)}</b></div><div class="line"><span class="label">SL</span><b>${fmt(r.sl)}</b></div><div class="line"><span class="label">T1 / T2</span><b>${fmt(r.t1)} / ${fmt(r.t2)}</b></div><div class="line"><span class="label">RSI / ADX</span><b>${fmt(r.rsi)} / ${fmt(r.adx)}</b></div></div>`
+            )
+            .join("")
+        : '<div class="empty">No strong directional setup in this scan.</div>';
+
+      $("scannerBody").innerHTML = results
+        .map(
+          (r, i) =>
+            `<tr><td>${i + 1}</td><td><b>${names[r.symbol]}</b></td><td>${r.sector}</td><td><span class="badge ${signalClass(r.direction)}">${r.direction}</span></td><td class="score">${r.confidence}</td><td>${fmt(r.price)}</td><td>${fmt(r.rsi)}</td><td>${fmt(r.adx)}</td><td>${r.vwap >= 0 ? "Above" : "Below"}</td><td>${r.relVol == null ? "—" : r.relVol.toFixed(2) + "x"}</td><td>${fmt(r.entryLo)}–${fmt(r.entryHi)}</td><td>${fmt(r.sl)}</td><td>${fmt(r.t1)}</td><td>${fmt(r.t2)}</td></tr>`
+        )
+        .join("") || '<tr><td colspan="14" class="empty">No results.</td></tr>';
+    }
+
+    // ============ EVENT LISTENERS ============
+    document.querySelectorAll("[data-int]").forEach((b) => {
+      b.onclick = () => {
+        document.querySelectorAll("[data-int]").forEach((x) =>
+          x.classList.remove("active")
+        );
+        b.classList.add("active");
+        interval = b.dataset.int;
+        load();
+      };
+    });
+
+    $("symbol").onchange = load;
+    $("refresh").onclick = () => {
+      dataCache.clear(); // Clear cache on manual refresh
+      load();
+      sectorStrength();
+    };
+    $("scan").onclick = scanAll;
+    window.onresize = draw;
+
+    // ============ INIT ============
+    watch();
+    load();
+    sectorStrength();
+
+    // Auto-refresh every 5 minutes
+    setInterval(() => {
+      load();
+      sectorStrength();
+    }, 300000);
+  </script>
+</body>
+</html>
