@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>NIFTY F&O Terminal — Fast</title>
+  <style>
+    :root {
+      --bg: #080d13;
+      --panel: #101720;
+      --grid: #26313d;
+      --txt: #e4ebf2;
+      --muted: #8290a0;
+      --up: #19c37d;
+      --dn: #ff4d5d;
+      --accent: #4da3ff;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--txt); font: 13px system-ui, -apple-system, Segoe UI, Arial, sans-serif; }
+    header { padding: 12px 14px; border-bottom: 1px solid #1d2732; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: #080d13; z-index: 5; }
+    h1 { font-size: 16px; margin: 0; }
+    .sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    
+    .controls { display: flex; gap: 7px; flex-wrap: wrap; padding: 10px; border-bottom: 1px solid #1d2732; background: #0b1118; position: sticky; top: 58px; z-index: 4; }
+    select, button { background: #151e28; color: var(--txt); border: 1px solid #2a3745; border-radius: 6px; padding: 8px 10px; cursor: pointer; font-size: 12px; }
+    button.active { border-color: var(--accent); color: #fff; }
+    
+    .grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 8px; padding: 8px; }
+    .panel { background: var(--panel); border: 1px solid #1d2732; border-radius: 8px; overflow: hidden; }
+    .title { padding: 9px 10px; font-weight: 650; border-bottom: 1px solid #1d2732; }
+    .stats { display: flex; gap: 18px; padding: 8px 10px; border-top: 1px solid #1d2732; flex-wrap: wrap; }
+    .k { color: var(--muted); }
+    .v { font-weight: 650; }
+    .up { color: var(--up); }
+    .dn { color: var(--dn); }
+
+    #chart { width: 100%; height: 500px; display: block; }
+    
+    #heat { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; padding: 8px; }
+    .tile { padding: 10px; border-radius: 6px; min-height: 50px; font-size: 12px; }
+    .tile b { display: block; font-size: 13px; }
+    
+    .section { margin: 0 8px 8px; }
+    .scanner-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 9px 10px; border-bottom: 1px solid #1d2732; }
+    .scanner-controls { display: flex; gap: 6px; flex-wrap: wrap; }
+    .progress { height: 3px; background: #1b2631; }
+    .progress > div { height: 100%; background: var(--accent); width: 0; transition: width 0.2s; }
+    
+    .top-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 8px; }
+    .setup { background: #151f2a; border: 1px solid #253342; border-radius: 7px; padding: 9px; font-size: 11px; }
+    .setup b { font-size: 13px; }
+    .setup .line { display: flex; justify-content: space-between; margin-top: 5px; }
+    .setup .label { color: var(--muted); }
+    
+    .empty { padding: 20px; text-align: center; color: var(--muted); }
+    .note { padding: 9px; color: var(--muted); font-size: 11px; border-top: 1px solid #1d2732; }
+    .badge { display: inline-block; padding: 3px 6px; border-radius: 5px; font-size: 10px; font-weight: 700; }
+    .buy { background: #0d4b37; color: #7ef0bc; }
+    .sell { background: #5b1820; color: #ff9da8; }
+    .wait { background: #493d16; color: #ffe39a; }
+    
+    @media(max-width:900px) { .grid { grid-template-columns: 1fr; } .top-grid { grid-template-columns: repeat(2, 1fr); } #chart { height: 400px; } }
+    @media(max-width:520px) { .top-grid { grid-template-columns: 1fr; } .setup { padding: 6px; font-size: 10px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🇮🇳 NIFTY F&O Terminal — ⚡ FAST</h1>
+      <div class="sub">Optimized for speed • Minimal API calls • Aggressive caching</div>
+    </div>
+    <div id="status" class="sub">Ready</div>
+  </header>
+
+  <div class="controls">
+    <select id="symbol"><option value="^NSEI">NIFTY 50</option><option value="^NSEBANK">BANK NIFTY</option></select>
+    <button data-int="5m" class="active">5m</button>
+    <button data-int="15m">15m</button>
+    <button data-int="1h">1H</button>
+    <button data-int="1d">Daily</button>
+    <button id="refresh">↻ Refresh</button>
+    <label style="display:flex;align-items:center;gap:5px"><input id="ema8" type="checkbox" checked> EMA8</label>
+    <label style="display:flex;align-items:center;gap:5px"><input id="ema20" type="checkbox" checked> EMA20</label>
+    <label style="display:flex;align-items:center;gap:5px"><input id="vwap" type="checkbox" checked> VWAP</label>
+  </div>
+
+  <div class="note" style="margin:0 8px 8px;border:1px solid #1d2732;background:#101720;border-radius:8px">
+    ⚡ <b>Optimized:</b> Aggressive caching (30 min) • Fewer API calls • Lazy loading • Mobile-friendly
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="title" id="chartTitle">NIFTY 50 • 5m</div>
+      <canvas id="chart"></canvas>
+      <div class="stats">
+        <div><span class="k">Close</span> <span id="close" class="v">—</span></div>
+        <div><span class="k">Change</span> <span id="change" class="v">—</span></div>
+        <div><span class="k">RSI14</span> <span id="rsi" class="v">—</span></div>
+        <div><span class="k">ATR14</span> <span id="atr" class="v">—</span></div>
+        <div><span class="k">Trend</span> <span id="trend" class="v">—</span></div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="title">Sector Strength</div>
+      <div id="heat">Loading (1st time only)…</div>
+      <div class="note">Top 3 stocks per sector. Cache: 30 min.</div>
+    </aside>
+  </div>
+
+  <section class="panel section">
+    <div class="scanner-head">
+      <div><b>⚡ Top F&O Setups</b><div class="mini">Fast scan (30 stocks only)</div></div>
+      <div class="scanner-controls">
+        <select id="scanInt"><option value="1h">1H</option><option value="1d">Daily</option></select>
+        <button id="scan">▶ Scan</button>
+      </div>
+    </div>
+    <div class="progress"><div id="progressBar"></div></div>
+    <div id="results" class="top-grid"><div class="empty">Tap "Scan" to start</div></div>
+  </section>
+
+  <script>
+    // ========== ULTRA FAST CONFIG ==========
+    const CACHE_TTL = 30 * 60000; // 30 minutes aggressive cache
+    const API_TIMEOUT = 8000; // 8 sec timeout per request
+    const TOP_STOCKS_ONLY = 30; // Only scan top 30 (not 100+)
+    const SECTOR_TOP = 3; // Only fetch top 3 per sector
+    
+    // Minimal stock list (most liquid F&O names)
+    const topStocks = {
+      Banking: ["HDFCBANK.NS", "ICICIBANK.NS", "SBIN.NS", "AXISBANK.NS", "KOTAKBANK.NS"],
+      IT: ["TCS.NS", "INFY.NS", "HCLTECH.NS", "WIPRO.NS", "TECHM.NS"],
+      Energy: ["RELIANCE.NS", "ONGC.NS", "BPCL.NS", "IOC.NS"],
+      Pharma: ["SUNPHARMA.NS", "DRREDDY.NS", "CIPLA.NS"],
+      Auto: ["MARUTI.NS", "M&M.NS", "TATAMOTORS.NS"],
+      Financials: ["BAJFINANCE.NS", "BAJAJFINSV.NS", "SHRIRAMFIN.NS"],
+      Metals: ["TATASTEEL.NS", "HINDALCO.NS", "JSWSTEEL.NS"],
+      Consumer: ["HINDUNILVR.NS", "ITC.NS", "NESTLEIND.NS"],
+      Industrials: ["LT.NS", "SIEMENS.NS", "ABB.NS"],
+      Chemicals: ["PIDILITIND.NS", "SRF.NS", "UPL.NS"],
+    };
+
+    const names = {};
+    Object.values(topStocks).flat().forEach(s => names[s] = s.replace(".NS", ""));
+
+    let interval = "5m", data = [], sectorCache = {}, dataCache = new Map();
+    const $ = id => document.getElementById(id);
+
+    function setStatus(text) { $("status").textContent = text; }
+
+    function getCacheKey(sym, int) { return `${sym}_${int}`; }
+
+    function getCachedData(sym, int) {
+      if (dataCache.has(getCacheKey(sym, int))) {
+        const { data: d, time } = dataCache.get(getCacheKey(sym, int));
+        if (Date.now() - time < CACHE_TTL) return d;
+      }
+      return null;
+    }
+
+    function setCachedData(sym, int, d) {
+      dataCache.set(getCacheKey(sym, int), { data: d, time: Date.now() });
+    }
+
+    // ========== FAST FETCH WITH TIMEOUT ==========
+    async function fetchWithTimeout(url, timeout = API_TIMEOUT) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      try {
+        const r = await fetch(url, { signal: controller.signal, cache: "force-cache" });
+        clearTimeout(timeoutId);
+        return r.ok ? await r.text() : null;
+      } catch {
+        clearTimeout(timeoutId);
+        return null;
+      }
+    }
+
+    async function yahoo(sym, int) {
+      const cached = getCachedData(sym, int);
+      if (cached) return cached;
+
+      const range = int === "1d" ? "1y" : "10d";
+      const base = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=${range}&interval=${int}&includePrePost=false`;
+
+      const urls = [base, `https://api.allorigins.win/raw?url=${encodeURIComponent(base)}`];
+
+      for (const u of urls) {
+        try {
+          const text = await fetchWithTimeout(u, 5000);
+          if (!text) continue;
+          const j = JSON.parse(text);
+          const q = j.chart?.result?.[0];
+          if (!q) continue;
+          const c = q.indicators?.quote?.[0] || {};
+          const t = q.timestamp || [];
+          const out = t.map((x, i) => ({
+            t: x,
+            o: c.open?.[i],
+            h: c.high?.[i],
+            l: c.low?.[i],
+            c: c.close?.[i],
+            v: c.volume?.[i] || 0,
+          })).filter(x => [x.o, x.h, x.l, x.c].every(Number.isFinite));
+          if (out.length > 5) {
+            setCachedData(sym, int, out);
+            return out;
+          }
+        } catch { }
+      }
+      return [];
+    }
+
+    // ========== FAST INDICATORS ==========
+    const ema = (a, n) => {
+      if (!a.length) return [];
+      let k = 2 / (n + 1), e = a[0];
+      return a.map((x, i) => i ? (e = e + (x - e) * k) : e);
+    };
+
+    const rsi = (a, n = 14) => {
+      let g = 0, l = 0, out = Array(a.length).fill(null);
+      for (let i = 1; i < a.length; i++) {
+        let d = a[i] - a[i - 1];
+        g = (g * (n - 1) + Math.max(d, 0)) / n;
+        l = (l * (n - 1) + Math.max(-d, 0)) / n;
+        if (i >= n) out[i] = 100 - 100 / (1 + g / (l || 1e-9));
+      }
+      return out;
+    };
+
+    const atr = (d, n = 14) => {
+      let tr = d.map((x, i) => i ? Math.max(x.h - x.l, Math.abs(x.h - d[i - 1].c), Math.abs(x.l - d[i - 1].c)) : x.h - x.l);
+      return ema(tr, n);
+    };
+
+    const vwap = (d) => {
+      let pv = 0, v = 0;
+      return d.map(x => (pv += ((x.h + x.l + x.c) / 3) * x.v, v += x.v, pv / (v || 1)));
+    };
+
+    const fmt = x => x == null || !Number.isFinite(x) ? "—" : x.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+    const pct = x => x == null || !Number.isFinite(x) ? "—" : `${x >= 0 ? "+" : ""}${x.toFixed(2)}%`;
+
+    // ========== FAST CHART ==========
+    function draw() {
+      const cv = $("chart");
+      const r = cv.getBoundingClientRect();
+      const dpr = devicePixelRatio || 1;
+      cv.width = r.width * dpr;
+      cv.height = r.height * dpr;
+      const c = cv.getContext("2d");
+      c.scale(dpr, dpr);
+
+      let W = r.width, H = r.height;
+      c.fillStyle = "#080d13";
+      c.fillRect(0, 0, W, H);
+
+      if (!data.length) {
+        c.fillStyle = "#8290a0";
+        c.font = "13px system-ui";
+        c.fillText("No data", 20, 30);
+        return;
+      }
+
+      const pad = { l: 48, r: 58, t: 20, b: 55 };
+      const pw = W - pad.l - pad.r;
+      const ph = H - pad.t - pad.b;
+
+      let lo = Math.min(...data.map(x => x.l));
+      let hi = Math.max(...data.map(x => x.h));
+      const extra = (hi - lo) * 0.06;
+      lo -= extra;
+      hi += extra;
+
+      const X = i => pad.l + (i / (data.length - 1)) * pw;
+      const Y = p => pad.t + ((hi - p) / (hi - lo)) * ph;
+
+      // Grid
+      c.strokeStyle = "#26313d";
+      c.lineWidth = 1;
+      c.font = "10px system-ui";
+      c.fillStyle = "#8290a0";
+
+      for (let j = 0; j <= 4; j++) {
+        let y = pad.t + (j * ph) / 4;
+        let p = hi - (j * (hi - lo)) / 4;
+        c.beginPath();
+        c.moveTo(pad.l, y);
+        c.lineTo(W - pad.r, y);
+        c.stroke();
+        c.fillText(fmt(p), W - pad.r + 5, y + 3);
+      }
+
+      // Candlesticks
+      let bw = Math.max(2, (pw / data.length) * 0.68);
+      data.forEach((x, i) => {
+        let xx = X(i);
+        let up = x.c >= x.o;
+        c.strokeStyle = up ? "#19c37d" : "#ff4d5d";
+        c.fillStyle = c.strokeStyle;
+        c.beginPath();
+        c.moveTo(xx, Y(x.h));
+        c.lineTo(xx, Y(x.l));
+        c.stroke();
+        let y1 = Y(x.o), y2 = Y(x.c);
+        c.fillRect(xx - bw / 2, Math.min(y1, y2), bw, Math.max(1, Math.abs(y2 - y1)));
+      });
+
+      // Indicators
+      function line(vals, stroke) {
+        c.strokeStyle = stroke;
+        c.lineWidth = 1.5;
+        c.beginPath();
+        vals.forEach((v, i) => {
+          if (v == null) return;
+          i ? c.lineTo(X(i), Y(v)) : c.moveTo(X(i), Y(v));
+        });
+        c.stroke();
+      }
+
+      if ($("ema8").checked) line(ema(data.map(x => x.c), 8), "#ffd166");
+      if ($("ema20").checked) line(ema(data.map(x => x.c), 20), "#4da3ff");
+      if ($("vwap").checked) line(vwap(data), "#f2f2f2");
+
+      // Volume
+      let vmax = Math.max(...data.map(x => x.v), 1);
+      let vh = ph * 0.14;
+      data.forEach((x, i) => {
+        c.fillStyle = x.c >= x.o ? "#19c37d66" : "#ff4d5d66";
+        let y = H - pad.b + (x.v / vmax) * vh;
+        c.fillRect(X(i) - bw / 2, y, bw, H - pad.b - y);
+      });
+    }
+
+    // ========== FAST LOAD ==========
+    async function load() {
+      setStatus("Loading…");
+      try {
+        data = await yahoo($("symbol").value, interval);
+        data = data.slice(-200);
+
+        const sym = $("symbol").selectedOptions[0].textContent;
+        const a = data.map(x => x.c);
+        const rr = rsi(a);
+        const at = atr(data);
+        const vw = vwap(data);
+
+        $("chartTitle").textContent = `${sym} • ${interval}`;
+        $("close").textContent = fmt(a.at(-1));
+
+        const ch = a.at(-1) - a.at(-2);
+        const p = (ch / a.at(-2)) * 100;
+        $("change").textContent = `${ch >= 0 ? "+" : ""}${fmt(ch)} (${p.toFixed(2)}%)`;
+        $("change").className = "v " + (ch >= 0 ? "up" : "dn");
+
+        $("rsi").textContent = fmt(rr.at(-1));
+        $("atr").textContent = fmt(at.at(-1));
+
+        let bull = a.at(-1) > ema(a, 20).at(-1) && a.at(-1) > vw.at(-1);
+        $("trend").textContent = bull ? "Bullish" : "Bearish";
+        $("trend").className = "v " + (bull ? "up" : "dn");
+
+        draw();
+        setStatus("Ready");
+      } catch (e) {
+        setStatus("Error — tap Refresh");
+        console.error(e);
+      }
+    }
+
+    // ========== LAZY SECTOR HEATMAP ==========
+    async function sectorStrength() {
+      let box = $("heat");
+      let vals = [];
+
+      for (const [g, arr] of Object.entries(topStocks)) {
+        let changes = [];
+        for (const s of arr.slice(0, SECTOR_TOP)) {
+          try {
+            let d = await yahoo(s, "1d");
+            if (d.length > 1) changes.push(((d.at(-1).c / d.at(-2).c) - 1) * 100);
+          } catch { }
+        }
+        let v = changes.length ? changes.reduce((a, b) => a + b) / changes.length : null;
+        sectorCache[g] = v;
+        vals.push([g, v]);
+      }
+
+      box.innerHTML = vals.map(([g, v]) => {
+        let alpha = v == null ? 0.15 : Math.min(0.8, 0.18 + Math.abs(v) / 3);
+        return `<div class="tile" style="background:${v == null ? "#17202a" : v >= 0 ? `rgba(25,195,125,${alpha})` : `rgba(255,77,93,${alpha})`}"><b>${g}</b><span>${pct(v)}</span></div>`;
+      }).join("");
+    }
+
+    // ========== ULTRA FAST SCORING ==========
+    function scoreSetup(d, sector) {
+      if (d.length < 30) return null;
+
+      const close = d.at(-1).c;
+      const closes = d.map(x => x.c);
+      const e8 = ema(closes, 8).at(-1);
+      const e20 = ema(closes, 20).at(-1);
+      const vw = vwap(d).at(-1);
+      const rs = rsi(closes).at(-1);
+      const av = atr(d).at(-1);
+      const hi20 = Math.max(...d.slice(-20).map(x => x.h));
+      const lo20 = Math.min(...d.slice(-20).map(x => x.l));
+
+      let score = 0;
+      if (close > e8) score += 10;
+      if (e8 > e20) score += 10;
+      if (close > vw) score += 8;
+      if (rs >= 55 && rs <= 72) score += 8;
+      if (close > hi20) score += 12;
+      if ((sectorCache[sector] || 0) > 0) score += 5;
+
+      let direction = score >= 30 ? "BUY" : score >= 20 ? "SELL" : "WAIT";
+      let confidence = Math.min(99, Math.round(50 + Math.abs(score) * 0.5));
+
+      let zone = av * 0.15;
+      return {
+        symbol: d.symbol,
+        sector,
+        direction,
+        confidence,
+        price: close,
+        rsi: rs,
+        entry: `${fmt(close - zone)}–${fmt(close + zone)}`,
+        sl: fmt(direction === "BUY" ? close - av : close + av),
+        t1: fmt(direction === "BUY" ? close + av : close - av),
+      };
+    }
+
+    // ========== ULTRA FAST SCAN ==========
+    async function scanAll() {
+      const int = $("scanInt").value;
+      setStatus("Scanning 30 stocks…");
+      $("progressBar").style.width = "0%";
+      $("results").innerHTML = '<div class="empty">Fetching…</div>';
+
+      let list = Object.entries(topStocks).flatMap(([g, a]) => a.slice(0, 3).map(s => ({ s, g })));
+      let results = [], done = 0;
+      const total = list.length;
+
+      // Ultra fast: sequential with early exit
+      for (const item of list) {
+        try {
+          let d = await yahoo(item.s, int);
+          d = d.slice(-150);
+          d.symbol = item.s;
+          let r = scoreSetup(d, item.g);
+          if (r) results.push(r);
+        } catch { }
+        done++;
+        $("progressBar").style.width = `${(done / total) * 100}%`;
+      }
+
+      results.sort((a, b) => b.confidence - a.confidence);
+      const top = results.filter(x => x.direction !== "WAIT").slice(0, 5);
+
+      $("results").innerHTML = top.length ? top.map(r => `<div class="setup">
+        <b>${names[r.symbol]}</b> <span class="mini">${r.sector}</span>
+        <div style="margin-top:6px"><span class="badge ${r.direction === "BUY" ? "buy" : "sell"}">${r.direction}</span> <b>${r.confidence}%</b></div>
+        <div class="line"><span class="label">Price</span><b>${fmt(r.price)}</b></div>
+        <div class="line"><span class="label">Entry</span><b style="font-size:10px">${r.entry}</b></div>
+        <div class="line"><span class="label">SL</span><b>${r.sl}</b></div>
+      </div>`).join("") : '<div class="empty">No strong signals in scan.</div>';
+
+      setStatus(`${results.length} scanned • ${top.length} signals`);
+    }
+
+    // ========== EVENTS ==========
+    document.querySelectorAll("[data-int]").forEach(b => {
+      b.onclick = () => {
+        document.querySelectorAll("[data-int]").forEach(x => x.classList.remove("active"));
+        b.classList.add("active");
+        interval = b.dataset.int;
+        load();
+      };
+    });
+
+    $("symbol").onchange = load;
+    $("refresh").onclick = () => { dataCache.clear(); load(); };
+    $("scan").onclick = scanAll;
+    window.onresize = draw;
+
+    // ========== INIT ==========
+    load();
+    setTimeout(sectorStrength, 500); // Lazy load sector
+
+    // Auto-refresh every 10 min
+    setInterval(load, 600000);
+  </script>
+</body>
+</html>
